@@ -7,20 +7,23 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
 
   var itemArray = [Item]()
   // write to our own plist without limited types
-  let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+  //let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
   
   //this is to store small bits of data.
   //let defaults = UserDefaults.standard
   
+  let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+  
   override func viewDidLoad() {
     super.viewDidLoad()
 
-    print(dataFilePath!)
+    print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
     
     loadItems()
     // This reads from the pList and populates itemArray
@@ -49,6 +52,13 @@ class TodoListViewController: UITableViewController {
   override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     //print(itemArray[indexPath.row])
     
+    //Updating data
+    //itemArray[indexPath.row].setValue("Completed", forKey: "title")
+    
+    // to delete an item - must be done in this order!
+//    context.delete(itemArray[indexPath.row])
+//    itemArray.remove(at: indexPath.row)
+    
     itemArray[indexPath.row].done = !itemArray[indexPath.row].done
     
     saveItems()
@@ -64,8 +74,11 @@ class TodoListViewController: UITableViewController {
     
     let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
       //what will happen when the user clicks the Add Item button on our UIAlert
-      let newItem = Item()
+      
+      
+      let newItem = Item(context: self.context)
       newItem.title = textField.text!
+      newItem.done = false
       
       self.itemArray.append(newItem)
       
@@ -88,28 +101,22 @@ class TodoListViewController: UITableViewController {
   //MARK - Model Manipulation Methods
   
   func saveItems()  {
-    // this is to write our own plist
-    let encoder = PropertyListEncoder()
-    
     do {
-      let data = try encoder.encode(itemArray)
-      try data.write(to: dataFilePath!)
-      
+      try context.save()
     } catch {
-      print("Error encoding array, \(error)")
+      print("Error saving context, \(error)")
     }
      tableView.reloadData()
   }
   
   func loadItems() {
-    if let data = try? Data(contentsOf: dataFilePath!) {
-      let decoder = PropertyListDecoder()
-      do {
-        itemArray = try decoder.decode([Item].self, from: data)
-      } catch {
-        print("Error decoding item array, \(error)")
-      }
+    let request : NSFetchRequest<Item> = Item.fetchRequest()
+    do {
+      itemArray = try context.fetch(request)
+    } catch {
+      print("Error fetching data from context, \(error)")
     }
+    
   }
 
 }
